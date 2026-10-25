@@ -1,0 +1,226 @@
+/* DevBuddy 主题变量 —— 改颜色在这里 */
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --primary: #2563eb;        /* React 蓝 */
+  --primary-light: #dbeafe;
+  --border: #e5e7eb;
+  --user-bubble: #2563eb;
+  --user-text: #ffffff;
+  --assistant-bubble: #ffffff;
+  --assistant-text: #1f2937;
+  --tool-badge-bg: #fef3c7;
+  --tool-badge-text: #92400e;
+  --error: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 768px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px;
+}
+
+/* ===== 顶部标题 ===== */
+.header {
+  text-align: center;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--primary);
+}
+.header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ===== 快捷提问 ===== */
+.quick-questions {
+  padding: 24px 0;
+}
+.quick-questions .hint {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.quick-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.quick-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.quick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== 消息列表 ===== */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== 单条消息 ===== */
+.message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.message.user {
+  flex-direction: row-reverse;  /* 用户气泡靠右 */
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.message.assistant .avatar {
+  background: #f3f4f6;
+  color: var(--text);
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--assistant-bubble);
+  border: 1px solid var(--border);
+  line-height: 1.6;
+  font-size: 14px;
+  word-break: break-word;
+}
+.message.user .bubble {
+  background: var(--user-bubble);
+  color: var(--user-text);
+  border-color: var(--user-bubble);
+}
+
+/* ===== 工具调用信息 ===== */
+.tool-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.tool-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px 4px 0 0;
+  background: var(--tool-badge-bg);
+  color: var(--tool-badge-text);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* ===== 消息正文 ===== */
+.content {
+  margin: 0;
+  white-space: pre-wrap;  /* 保留换行 + 自动换行 */
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ===== 打字光标 ===== */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: var(--primary);
+  margin-left: 2px;
+  animation: blink 0.8s infinite;
+}
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.error-badge {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--error);
+}
+
+/* ===== 底部输入栏 ===== */
+.input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 16px 0 24px;
+  border-top: 1px solid var(--border);
+}
+.input-bar input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-bar input:focus {
+  border-color: var(--primary);
+}
+.input-bar button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  background: var(--primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.input-bar button:hover {
+  opacity: 0.9;
+}
+.input-bar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
