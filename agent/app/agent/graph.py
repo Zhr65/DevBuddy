@@ -62,10 +62,10 @@ def search_react_docs(query: str) -> str:
     # 把检索结果拼成可读文本喂给 LLM
     # 每条结果带 source 让 LLM 知道"这段来自哪篇"
     chunks = []
-    for doc in results:
-        src = doc.metadata.get("source", "未知来源")
-        sim = doc.metadata.get("similarity", 0)
-        chunks.append(f"[来源: {src}, 相关度: {sim:.2f}]\n{doc.page_content}")
+    for chunk in results:
+        src = chunk.source
+        sim = chunk.similarity
+        chunks.append(f"[来源: {src}, 相关度: {sim:.2f}]\n{chunk.content}")
 
     return "\n\n---\n\n".join(chunks)
 

@@ -31,6 +31,7 @@ from typing import List, Tuple
 from langchain_core.documents import Document
 
 from app.core.config import SCORE_THRESHOLD, TOP_K
+from app.rag.schemas import RetrievedChunk
 from app.rag.vectorstore import get_vectorstore
 
 """这个函数单独抽出来:为了可测试,是整个RAG的度量衡.工程化思维:公式即函数,函数即可测"""
@@ -44,7 +45,7 @@ def retrieve(
     query: str,
     top_k: int = TOP_K,
     score_threshold: float = SCORE_THRESHOLD,
-) -> List[Document]:
+) -> List[RetrievedChunk]:
     """
     核心检索函数。
 
@@ -54,7 +55,7 @@ def retrieve(
         score_threshold: 相似度低于这个值的丢掉
 
     返回:
-        过滤后的 Document 列表，每条的 metadata 里带 "similarity" 和 "source"
+        过滤后的 RetrievedChunk 列表，每条的 metadata 里带 "similarity" 和 "source"
         如果一条都没命中 → 返回空列表 []
     """
 
@@ -71,23 +72,24 @@ def retrieve(
         k=top_k,
     )
 
-    # 转相似度 + 阈值过滤
-    """转相似度+阈值过滤"""
-    filtered: List[Document] = []
+    """转相似度+阈值过滤+组装成显式类型"""
+    chunks: List[RetrievedChunk] = []
     for doc, distance in raw_results:
-        sim = cosine_distance_to_similarity(distance)     #距离转相似度
-        doc.metadata["similarity"] = round(sim, 4)  # 保留 4 位小数方便看，把分数写进metadata
-        doc.metadata["distance"] = round(distance, 4)
+        sim = cosine_distance_to_similarity(distance)     # 距离转相似度
 
-        if sim >= score_threshold:       #阈值兜底
-            filtered.append(doc)
+        if sim >= score_threshold:       # 阈值兜底
+            chunks.append(RetrievedChunk(
+                content=doc.page_content,
+                source=doc.metadata.get("source", "?"),
+                similarity=round(sim, 4),
+            ))
         else:
             print(f"  [retriever] 丢弃（相似度 {sim:.3f} < 阈值 {score_threshold}）: "
                   f"{doc.metadata.get('source', '?')}")
 
     """一行日志(未来logging)"""
-    print(f"[retriever] query='{query[:40]}...' → {len(filtered)}/{len(raw_results)} 条通过阈值")
-    return filtered
+    print(f"[retriever] query='{query[:40]}...' → {len(chunks)}/{len(raw_results)} 条通过阈值")
+    return chunks
 
 
 if __name__ == "__main__":
@@ -97,9 +99,9 @@ if __name__ == "__main__":
 
     print(f"\n🔍 查询: {test_query}")
     print("=" * 60)
-    for i, doc in enumerate(results):
-        print(f"\n【结果 {i+1}】source={doc.metadata.get('source')} "
-              f"| 相似度={doc.metadata.get('similarity')}")
+    for i, chunk in enumerate(results):
+        print(f"\n【结果 {i+1}】source={chunk.source} "
+              f"| 相似度={chunk.similarity}")
         # 打印前 200 字
-        preview = doc.page_content[:200].replace("\n", " ")
+        preview = chunk.content[:200].replace("\n", " ")
         print(f"  {preview}...")
