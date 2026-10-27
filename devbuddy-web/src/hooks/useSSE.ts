@@ -44,6 +44,9 @@ export function useSSE(apiUrl = '/api/chat') {
   const [loading, setLoading] = useState(false)
   // 当前正在流式接收的那条 assistant 消息的 ID
   const currentAssistantId = useRef<string | null>(null)
+  // 会话 ID：每个标签页一个。用 useState 的惰性初始化，
+  // 保证 crypto.randomUUID() 只在首次渲染时调用一次（不是每渲染一次）。
+  const [conversationId] = useState(() => crypto.randomUUID())
 
   /**
    * 解析 SSE 流的核心函数 —— 把 ReadableStream 切成一个个 SSE event
@@ -120,8 +123,8 @@ export function useSSE(apiUrl = '/api/chat') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userText,
-          // 不传 conversation_id → 后端用 "default"
-          // 以后做多轮对话可以传同一个 ID
+          // 带上本标签页的会话 ID —— 不传的话后端全落到 "default"，多窗口会串台
+          conversation_id: conversationId,
         }),
       })
 
