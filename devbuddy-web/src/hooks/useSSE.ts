@@ -44,9 +44,17 @@ export function useSSE(apiUrl = '/api/chat') {
   const [loading, setLoading] = useState(false)
   // 当前正在流式接收的那条 assistant 消息的 ID
   const currentAssistantId = useRef<string | null>(null)
-  // 会话 ID：每个标签页一个。用 useState 的惰性初始化，
-  // 保证 crypto.randomUUID() 只在首次渲染时调用一次（不是每渲染一次）。
-  const [conversationId] = useState(() => crypto.randomUUID())
+  // 会话 ID：每个标签页一个。
+  // 用 sessionStorage 而不是 localStorage —— localStorage 是"同源共享"，
+  // 两个标签页会拿到同一个 ID，等于没修串台；sessionStorage 是"每标签页独立"，
+  // 且刷新不丢（localStorage 那种"刷新保留"的诉求它也能满足）。
+  const [conversationId] = useState(() => {
+    const saved = sessionStorage.getItem('conversation_id')
+    if (saved) return saved
+    const id = crypto.randomUUID()
+    sessionStorage.setItem('conversation_id', id)
+    return id
+  })
 
   /**
    * 解析 SSE 流的核心函数 —— 把 ReadableStream 切成一个个 SSE event
