@@ -12,6 +12,7 @@ vectorstore.py —— Chroma 向量库封装
   2. LangChain 原生集成，from_documents 一行入库
   3. 支持 metadata filter（以后想按 source 过滤会用到）
 """
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -28,9 +29,13 @@ from app.core.config import BGE_M3_LOCAL_PATH, CHROMA_PERSIST_DIR
 COLLECTION_NAME = "react_docs"
 
 
+@lru_cache(maxsize=1)
 def get_embeddings() -> HuggingFaceEmbeddings:
     """
     拿 embedding 实例 —— 本地自托管 BGE-M3，整个应用共享一个就行。
+
+    @lru_cache(maxsize=1)：进程内只加载一次 2.2GB 权重，之后复用同一实例。
+    满足"无参数 + 纯工厂"两个前提，所以 lru_cache 是正解。
 
     和之前硅基流动 API 版的区别：
       - 向量在本地算：零边际成本、不依赖网络和 API key
