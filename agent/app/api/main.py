@@ -21,11 +21,12 @@ app = FastAPI(
     version="0.2.0",
 )
 
-# CORS —— 前端 React（localhost:5173 / 3000）能跨域调这个接口
-# allow_origins=["*"] 是开发时偷懒，生产环境要白名单
+# CORS —— 前端 React 在 5173，白名单只放行它
+# 注意：allow_origins 不能用 "*" 配 allow_credentials=True —— 浏览器明确禁止该组合。
+# 生产环境把这里换成真实域名。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
