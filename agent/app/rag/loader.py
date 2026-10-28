@@ -14,6 +14,7 @@ Markdown 文档有标题结构（# / ## / ###），如果直接按字符数切�
            → 把上一步出来的大块继续切到 500 字以内
            → chunk_overlap=50 保证相邻块有重叠，不会丢语义
 """
+import logging
 from pathlib import Path
 from typing import List
 
@@ -22,6 +23,8 @@ from langchain_text_splitters import (
     MarkdownHeaderTextSplitter,
     RecursiveCharacterTextSplitter,
 )
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import CHUNK_OVERLAP, CHUNK_SIZE, DATA_DIR
 
@@ -49,7 +52,7 @@ def load_markdown_files(data_dir: Path = DATA_DIR) -> List[str]:
         content = f.read_text(encoding="utf-8")
         raw_texts.append(content)
 
-    print(f"[loader] 读进 {len(md_files)} 篇 Markdown 文件，共 {sum(len(t) for t in raw_texts)} 字符")
+    logger.info("读进 %d 篇 Markdown 文件，共 %d 字符", len(md_files), sum(len(t) for t in raw_texts))
     return raw_texts, md_files
 
 
@@ -83,7 +86,7 @@ def split_documents(
             c.metadata["source"] = src.name  # 比如 "useState.md"
         header_chunks.extend(chunks)
 
-    print(f"[loader] 第 1 步（按标题切）得到 {len(header_chunks)} 块")
+    logger.info("第 1 步（按标题切）得到 %d 块", len(header_chunks))
 
     # ----- 第 2 步：按字符数补刀 -----
     char_splitter = RecursiveCharacterTextSplitter(
@@ -94,7 +97,7 @@ def split_documents(
     )
 
     final_chunks = char_splitter.split_documents(header_chunks)
-    print(f"[loader] 第 2 步（按字符补刀）得到 {len(final_chunks)} 块")
+    logger.info("第 2 步（按字符补刀）得到 %d 块", len(final_chunks))
 
     return final_chunks
 

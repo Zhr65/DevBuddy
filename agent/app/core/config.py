@@ -1,6 +1,7 @@
 """
 全局配置 —— 从 .env 读密钥，其余常量硬编码在这里
 """
+import logging
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -43,3 +44,13 @@ SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.5"))  # 低于此分数�
 # 0.5 的来历：2026-10-28 实测（practice/probe_distance.py）
 #   无关 query 余弦上限 0.4717 / 相关 query 余弦下限 0.6940，0.5 落在断层内。
 #   余量只有 0.028，终值待 11/3 用 10 条 eval 集重新定。
+
+# --- 日志 ---
+# 在这里配一次就全局生效：所有业务模块都会 import config。
+# basicConfig 只在 root logger 还没有 handler 时起作用，所以重复 import 不会叠加 handler。
+# 级别用 LOG_LEVEL 环境变量控制（DEBUG 能看到逐块丢弃明细，INFO 只看汇总）。
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)

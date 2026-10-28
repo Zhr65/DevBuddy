@@ -26,6 +26,7 @@ SCORE_THRESHOLD = 0.3 意味着：相似度 < 0.3 的直接扔掉，
 3. 过滤掉相似度低于 score_threshold 的
 4. 返回过滤后的结果
 """
+import logging
 from typing import List, Optional, Tuple
 
 from langchain_core.documents import Document
@@ -33,6 +34,8 @@ from langchain_core.documents import Document
 from app.core import config
 from app.rag.schemas import RetrievedChunk
 from app.rag.vectorstore import get_vectorstore
+
+logger = logging.getLogger(__name__)
 
 """这个函数单独抽出来:为了可测试,是整个RAG的度量衡.工程化思维:公式即函数,函数即可测"""
 def cosine_distance_to_similarity(distance: float) -> float:
@@ -90,11 +93,17 @@ def retrieve(
                 similarity=round(sim, 4),
             ))
         else:
-            print(f"  [retriever] 丢弃（相似度 {sim:.3f} < 阈值 {score_threshold}）: "
-                  f"{doc.metadata.get('source', '?')}")
+            # 逐块明细走 DEBUG：正常查询不该刷屏，排查问题时才开
+            logger.debug(
+                "丢弃块 sim=%.3f < threshold=%.2f source=%s",
+                sim, score_threshold, doc.metadata.get("source", "?"),
+            )
 
-    """一行日志(未来logging)"""
-    print(f"[retriever] query='{query[:40]}...' → {len(chunks)}/{len(raw_results)} 条通过阈值")
+    # 只打 query 长度、不打原文：用户提问可能含隐私，日志要能长期留存
+    logger.info(
+        "检索完成 query_len=%d top_k=%d threshold=%.2f 命中=%d/%d",
+        len(query), top_k, score_threshold, len(chunks), len(raw_results),
+    )
     return chunks
 
 
