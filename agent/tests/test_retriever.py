@@ -111,3 +111,24 @@ def test_retrieve_raises_when_vectorstore_missing(monkeypatch):
 
     with pytest.raises(RuntimeError):
         retrieve("随便")
+
+
+def test_retrieve_reads_config_at_call_time(monkeypatch, fake_vs):
+    """不传参数时，应读 config 的「当前值」，而不是 import 时绑死的值。
+
+    抓的 bug：`top_k: int = TOP_K` 这种写法在函数定义时就把值算好了，
+    之后改 config / 测试 monkeypatch 全部无效，改配置必须重启进程。
+
+    注意这里 patch 的是 app.core.config 的属性，不是 retriever 里的名字：
+    retriever 必须写成 `from app.core import config` + `config.TOP_K`，
+    如果写成 `from app.core.config import TOP_K`，值会被拷贝，这个用例会红。
+    """
+    fake = fake_vs([(_doc("内容", "a.md"), 0.25)])   # sim = 1 - 0.25/2 = 0.875
+    monkeypatch.setattr("app.rag.retriever.get_vectorstore", lambda: fake)
+    monkeypatch.setattr("app.core.config.TOP_K", 2)
+    monkeypatch.setattr("app.core.config.SCORE_THRESHOLD", 0.9)   # 0.875 < 0.9 → 应被过滤
+
+    out = retrieve("不传任何参数")
+
+    assert fake.last_k == 2, "top_k 应读到 monkeypatch 后的 config.TOP_K=2"
+    assert out == [], "阈值应读到 0.9，0.875 的块被过滤"

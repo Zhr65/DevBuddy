@@ -26,11 +26,11 @@ SCORE_THRESHOLD = 0.3 意味着：相似度 < 0.3 的直接扔掉，
 3. 过滤掉相似度低于 score_threshold 的
 4. 返回过滤后的结果
 """
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from langchain_core.documents import Document
 
-from app.core.config import SCORE_THRESHOLD, TOP_K
+from app.core import config
 from app.rag.schemas import RetrievedChunk
 from app.rag.vectorstore import get_vectorstore
 
@@ -43,21 +43,27 @@ def cosine_distance_to_similarity(distance: float) -> float:
 """retriever 主函数"""
 def retrieve(
     query: str,
-    top_k: int = TOP_K,
-    score_threshold: float = SCORE_THRESHOLD,
+    top_k: Optional[int] = None,
+    score_threshold: Optional[float] = None,
 ) -> List[RetrievedChunk]:
     """
     核心检索函数。
 
     参数:
         query:           用户的问题（自然语言）
-        top_k:           最多取几条
-        score_threshold: 相似度低于这个值的丢掉
+        top_k:           最多取几条。None = 用 config.TOP_K（调用时才读，测试可覆盖）
+        score_threshold: 相似度低于这个值的丢掉。None = 用 config.SCORE_THRESHOLD
 
     返回:
         过滤后的 RetrievedChunk 列表，每条的 metadata 里带 "similarity" 和 "source"
         如果一条都没命中 → 返回空列表 []
     """
+    # 哨兵：不能在函数定义时写 `top_k: int = TOP_K`，那是 import 时就把值绑死，
+    # 之后改 config 或测试 monkeypatch 都不生效。改成 None 后每次调用才读。
+    if top_k is None:
+        top_k = config.TOP_K
+    if score_threshold is None:
+        score_threshold = config.SCORE_THRESHOLD
 
     """先拿向量库，没建就明确报错"""
     vs = get_vectorstore()
