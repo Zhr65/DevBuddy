@@ -132,3 +132,63 @@ def test_retrieve_reads_config_at_call_time(monkeypatch, fake_vs):
 
     assert fake.last_k == 2, "top_k 应读到 monkeypatch 后的 config.TOP_K=2"
     assert out == [], "阈值应读到 0.9，0.875 的块被过滤"
+
+
+def test_retrieve_rejects_blank_query(monkeypatch, fake_vs):
+    """空 query 必须报错，不能静默返回一堆块。
+
+    抓的 bug（2026-10-28 实测）：query='' 时 embedding 出中性向量，和所有文本
+    相似度都在 0.5 附近，刚好过阈值 → 返回 4 条无关内容喂给 LLM。
+    不崩、不空、不报错，是最难查的失败模式。
+    """
+    fake = fake_vs([(_doc("无关内容", "a.md"), 0.25)])
+    monkeypatch.setattr("app.rag.retriever.get_vectorstore", lambda: fake)
+
+    with pytest.raises(ValueError):
+        retrieve("")
+    with pytest.raises(ValueError):
+        retrieve("   \n\t ")
+
+    assert fake.last_k is None, "校验必须在碰向量库之前，否则坏输入也会白加载 2.2GB 模型"
+
+
+def test_retrieve_rejects_non_str_query(monkeypatch, fake_vs):
+    """None / 数字等非字符串必须抛 TypeError，同样不能进到向量库。
+
+    抓的 bug：query=None 会在 tokenizer 内部炸出 AttributeError，
+    报错指向 'NoneType' object has no attribute 'replace'，排查者根本看不出是参数问题。
+    """
+    fake = fake_vs([(_doc("x", "a.md"), 0.25)])
+    monkeypatch.setattr("app.rag.retriever.get_vectorstore", lambda: fake)
+
+    with pytest.raises(TypeError):
+        retrieve(None)
+    with pytest.raises(TypeError):
+        retrieve(123)
+
+    assert fake.last_k is None
+
+
+def test_retrieve_rejects_out_of_range_params(monkeypatch, fake_vs):
+    """top_k <= 0、threshold 越界必须报错，而不是把问题推给 Chroma 或静默放行。
+
+    抓的 bug（2026-10-28 实测）：
+      - top_k=0/-1 → Chroma 抛 TypeError("Number of requested results 0...")，
+        错误来自第三方库，看不出是自己传错了；
+      - threshold=-1 → 返回 5 条全部放行（兜底等于没设）；
+      - threshold=2 → 静默返回 0 条，用户会以为"知识库里没这个内容"。
+    后两个都是"不报错的错"，比抛异常难查得多。
+    """
+    fake = fake_vs([(_doc("x", "a.md"), 0.25)])
+    monkeypatch.setattr("app.rag.retriever.get_vectorstore", lambda: fake)
+
+    with pytest.raises(ValueError):
+        retrieve("x", top_k=0)
+    with pytest.raises(ValueError):
+        retrieve("x", top_k=-1)
+    with pytest.raises(ValueError):
+        retrieve("x", score_threshold=-0.1)
+    with pytest.raises(ValueError):
+        retrieve("x", score_threshold=1.5)
+
+    assert fake.last_k is None

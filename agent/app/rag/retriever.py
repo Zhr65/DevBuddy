@@ -61,12 +61,36 @@ def retrieve(
         过滤后的 RetrievedChunk 列表，每条的 metadata 里带 "similarity" 和 "source"
         如果一条都没命中 → 返回空列表 []
     """
+    # --- 防御：坏输入必须在碰 Chroma / embedding 之前挡住 ---
+    # 实测（2026-10-28，practice/probe_bad_inputs.py）：
+    #   query="" 或 "   " 会 embedding 出一个中性向量，和所有文本相似度都在 0.5 附近，
+    #   刚好过阈值 → 返回 4 条无关内容喂给 LLM。不崩、不空、不报错，
+    #   而是"一本正经地答非所问"——比抛异常危险得多。
+    #   query=None 则在 tokenizer 内部炸出 AttributeError，报错毫无指向性。
+    if query is None:
+        raise TypeError("query 不能是 None")
+    if not isinstance(query, str):
+        raise TypeError(f"query 必须是 str，收到 {type(query).__name__}")
+    if not query.strip():
+        raise ValueError("query 不能为空（或只有空白字符）")
+
     # 哨兵：不能在函数定义时写 `top_k: int = TOP_K`，那是 import 时就把值绑死，
     # 之后改 config 或测试 monkeypatch 都不生效。改成 None 后每次调用才读。
     if top_k is None:
         top_k = config.TOP_K
     if score_threshold is None:
         score_threshold = config.SCORE_THRESHOLD
+
+    # --- 防御：数值参数越界（实测 2026-10-28）---
+    #   top_k <= 0 会让 Chroma 抛 TypeError("Number of requested results 0...")，
+    #   错误来自第三方库，排查者看不出是自己传错了参数。
+    #   threshold < 0 等于关掉兜底（实测返回 5 条全部放行）；
+    #   threshold > 1 则静默返回空——用户会以为"知识库里没这个内容"，实际是配置写错了。
+    #   两者都是"不报错的错"，必须在入口拦掉。
+    if top_k < 1:
+        raise ValueError(f"top_k 必须 >= 1，收到 {top_k!r}")
+    if not (0.0 <= score_threshold <= 1.0):
+        raise ValueError(f"score_threshold 必须在 [0, 1] 内，收到 {score_threshold!r}")
 
     """先拿向量库，没建就明确报错"""
     vs = get_vectorstore()
