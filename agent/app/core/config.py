@@ -32,7 +32,14 @@ CHUNK_SIZE = 500       # 每个块最多 500 字符
 CHUNK_OVERLAP = 50     # 相邻块重叠 50 字符（防断章取义）
 
 # --- 检索 ---
-TOP_K = 5              # 取最相近的 5 块
-SCORE_THRESHOLD = 0.3  # 低于此分数视为"没翻到书"，返回空列表
-# 注意：Chroma 默认用余弦距离（0=完全相同，2=完全相反）
-# 转成相似度 = 1 - 距离/2，所以阈值 0.3 大致对应距离 1.4 以内
+TOP_K = int(os.getenv("TOP_K", "5"))              # 取最相近的 5 块
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.5"))  # 低于此分数视为"没翻到书"，返回空列表
+# 关于距离函数（改之前务必读完，否则阈值会静默失效）：
+# vectorstore.py 没设 hnsw:space，Chroma 走默认的 l2 space，
+# 返回的 distance 是 L2 距离的平方 = 2 - 2*cos（向量已归一化，范围 [0,4]）。
+# 所以 cosine_distance_to_similarity 里的 1 - d/2 恰好等于真余弦相似度。
+# 一旦有人把 space 改成 cosine，返回会变成 1 - cos，这个公式和上面的阈值会同时失效。
+#
+# 0.5 的来历：2026-10-28 实测（practice/probe_distance.py）
+#   无关 query 余弦上限 0.4717 / 相关 query 余弦下限 0.6940，0.5 落在断层内。
+#   余量只有 0.028，终值待 11/3 用 10 条 eval 集重新定。
