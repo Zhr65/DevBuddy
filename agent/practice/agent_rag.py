@@ -26,19 +26,26 @@ RAG = 开卷考试：先翻资料（检索），再答题（生成）。
 """
 
 import math
+import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
 # ===============================================================
 # 配置区
 # ===============================================================
+# 密钥从 agent/.env 读，不写死在代码里（本文件要进公开仓库）
+# 独立运行（python practice/agent_rag.py）时 __file__ 在 practice/，往上两层才是 agent/
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 # 真项目常见分工：聊天一个站，embedding 另一个站，各配一个 client
 client = OpenAI(              # 聊天模型：apihub
-    api_key="<REDACTED>",
+    api_key=os.getenv("AGNES_API_KEY", ""),
     base_url="https://apihub.agnes-ai.com/v1",
 )
 embed_client = OpenAI(        # embedding 模型：硅基流动（免费）
-    api_key="在这里粘贴你的硅基流动 API Key",   # ← ← ← 填这里！
+    api_key=os.getenv("SILICONFLOW_API_KEY", ""),
     base_url="https://api.siliconflow.cn/v1",
 )
 MODEL = "agnes-2.5-flash"

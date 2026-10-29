@@ -18,13 +18,21 @@ ReAct = Reason(想) + Act(做) + Observation(看结果)，
 运行：  python agent_tool.py
 """
 
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from openai import OpenAI
 
 # ===============================================================
 # 配置区（和 mini.py 一样）
 # ===============================================================
+# 密钥从 agent/.env 读，不写死在代码里（本文件要进公开仓库）
+# 独立运行（python practice/agent_tool.py）时 __file__ 在 practice/，往上两层才是 agent/
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 client = OpenAI(
-    api_key="<REDACTED>",
+    api_key=os.getenv("AGNES_API_KEY", ""),
     base_url="https://apihub.agnes-ai.com/v1",
 )
 MODEL = "agnes-2.5-flash"
