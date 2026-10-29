@@ -37,6 +37,14 @@ from app.rag.vectorstore import get_vectorstore
 
 logger = logging.getLogger(__name__)
 
+class RetrievalError(RuntimeError):
+    """检索链路失败。
+
+    区别于「检索成功但没命中」——后者返回 []，是正常业务结果。
+    这个异常表示「根本没能完成检索」，调用方应据此决定是否降级。
+    """
+
+
 """这个函数单独抽出来:为了可测试,是整个RAG的度量衡.工程化思维:公式即函数,函数即可测"""
 def cosine_distance_to_similarity(distance: float) -> float:
     """Chroma 给的是余弦距离，转成人类友好的相似度 [0, 1]"""
@@ -100,10 +108,11 @@ def retrieve(
     # similarity_search_with_score = 搜索 + 返回每条的分数（距离）
     # 返回的是 [(Document, distance), (Document, distance), ...]
     """搜索+带分数"""
-    raw_results: List[Tuple[Document, float]] = vs.similarity_search_with_score(
-        query=query,
-        k=top_k,
-    )
+    try:
+        raw_results = vs.similarity_search_with_score(query=query, k=top_k)
+    except Exception as e:
+        logger.exception("检索失败 query_len=%d top_k=%d", len(query), top_k)
+        raise RetrievalError(f"检索服务不可用({type(e).__name__})") from e
 
     """转相似度+阈值过滤+组装成显式类型"""
     chunks: List[RetrievedChunk] = []
