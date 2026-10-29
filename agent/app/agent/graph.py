@@ -22,6 +22,8 @@ SSE Event 格式（前端消费这个）：
   {"type": "done"}                                 ← 流结束
   {"type": "error", "message": "..."}              ← 异常兜底
 """
+import logging
+logger = logging.getLogger(__name__)
 from typing import Annotated, AsyncGenerator, TypedDict
 
 from langchain_core.messages import AIMessageChunk, ToolMessage
@@ -33,7 +35,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from app.core.config import AGNES_API_KEY
-from app.rag.retriever import retrieve
+from app.rag.retriever import retrieve, RetrievalError
 
 
 # ===============================================================
@@ -178,8 +180,11 @@ async def stream_chat(
         # 流正常结束
         yield {"type": "done"}
 
-    except Exception as e:
-        yield {"type": "error", "message": str(e)}
+    except RetrievalError as e:
+        yield {"type": "error", "message": f"知识库暂时不可用，请稍后重试({e})"}
+    except Exception:
+        logger.exception("stream_chat 未知异常")
+        yield {"type": "error", "message": "服务异常，请稍后重试"}
 
 
 def chat(

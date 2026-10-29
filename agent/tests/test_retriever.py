@@ -6,7 +6,7 @@
 import pytest
 from langchain_core.documents import Document
 
-from app.rag.retriever import cosine_distance_to_similarity, retrieve
+from app.rag.retriever import cosine_distance_to_similarity, retrieve, RetrievalError
 
 
 def _doc(text: str, source: str) -> Document:
@@ -192,3 +192,16 @@ def test_retrieve_rejects_out_of_range_params(monkeypatch, fake_vs):
         retrieve("x", score_threshold=1.5)
 
     assert fake.last_k is None
+
+
+def test_retrieve_wraps_vectorstore_failure(monkeypatch):
+    """底层炸了要包成 RetrievalError，并保留原始异常链。"""
+    class BoomVS:
+        def similarity_search_with_score(self, query, k):
+            raise ConnectionError("chroma 挂了")
+
+    monkeypatch.setattr("app.rag.retriever.get_vectorstore", lambda: BoomVS())
+
+    with pytest.raises(RetrievalError) as exc_info:
+        retrieve("useState")  ##随机的提问
+    assert isinstance(exc_info.value.__cause__,  ConnectionError),"必须保留原始异常链"
