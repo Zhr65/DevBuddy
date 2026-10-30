@@ -1,0 +1,26 @@
+# 后端依赖（版本为 2026-10-30 开发环境实测版本）
+# 安装：python -m pip install -r requirements.txt
+#
+# 注意：BGE-M3 模型权重约 2.2GB，不在本文件管理范围，需单独放到 BGE_M3_LOCAL_PATH
+
+# --- Web 服务 ---
+fastapi==0.138.0
+uvicorn==0.49.0
+
+# --- 配置 ---
+python-dotenv==1.2.2
+
+# --- RAG：向量库与切块 ---
+chromadb==1.5.9
+langchain-chroma==1.1.0
+langchain-core==1.6.6
+langchain-huggingface==1.2.3
+langchain-text-splitters==1.1.3
+
+# --- Agent：LLM 与图编排 ---
+langchain-openai==1.6.7
+langgraph==1.2.14
+openai==2.54.0
+
+# --- 测试 ---
+pytest==9.1.1
