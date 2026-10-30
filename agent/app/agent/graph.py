@@ -26,9 +26,10 @@ import logging
 logger = logging.getLogger(__name__)
 from typing import Annotated, AsyncGenerator, TypedDict
 
-from langchain_core.messages import AIMessageChunk, ToolMessage
+from langchain_core.messages import AIMessageChunk, ToolMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
+from langchain_openai.chat_models.base import OpenAIRateLimitError
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
@@ -74,6 +75,20 @@ def search_react_docs(query: str) -> str:
 
 TOOLS = [search_react_docs]
 
+# ===============================================================
+# System Prompt —— 约束 LLM 的行为边界
+# ===============================================================
+SYSTEM_PROMPT = """你是 React 官方文档助手。严格遵守以下三条规则：
+
+1. 回答必须基于 search_react_docs 工具返回的原文片段。如果工具返回「知识库中没有找到相关资料」，
+   就直接告诉用户没找到，不要用自己的知识补充——宁可说不知道，也不要编。
+   **最多检索 2 次。如果两次都没找到直接相关的内容，就明确告诉用户"知识库中没有找到相关内容"，
+   不要再换说法继续检索。**
+2. 引用具体内容时，标明来源文件名（例如 useState.md），让用户能自己核对。
+3. 不要改写原文的技术细节（参数名、执行顺序、限制条件）。可以总结，但不要替换术语、不要模糊化。
+"""
+
+
 
 # ===============================================================
 # State —— 和模块6一模一样
@@ -89,7 +104,10 @@ llm_with_tools = llm.bind_tools(TOOLS)
 
 
 def call_model(state: State):
-    return {"messages": [llm_with_tools.invoke(state["messages"])]}
+    # system prompt 每次临时拼在最前面，不写进 state
+    # 否则 MemorySaver 会把它当历史消息累积，每轮多一条，token 白烧
+    messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+    return {"messages": [llm_with_tools.invoke(messages)]}
 
 
 tool_node = ToolNode(TOOLS)
@@ -127,7 +145,10 @@ async def stream_chat(
         {"type": "done"}
         {"type": "error", "message": "..."}
     """
-    config = {"configurable": {"thread_id": conversation_id}}
+    config = {
+        "configurable": {"thread_id": conversation_id},
+        "recursion_limit": 10,
+    }
 
     try:
         # stream_mode=["messages", "updates"] —— LangGraph 会同时推两个流
@@ -180,6 +201,8 @@ async def stream_chat(
         # 流正常结束
         yield {"type": "done"}
 
+    except OpenAIRateLimitError:
+        yield {"type": "error", "message": "AI 服务当前繁忙（限流），请稍后重试"}
     except RetrievalError as e:
         yield {"type": "error", "message": f"知识库暂时不可用，请稍后重试({e})"}
     except Exception:
@@ -195,7 +218,10 @@ def chat(
     非流式版本 —— 等 AI 完整回答好一次性返回。
     前端 SSE 接口用 stream_chat()，这个给调试/后端内部调用用。
     """
-    config = {"configurable": {"thread_id": conversation_id}}
+    config = {
+        "configurable": {"thread_id": conversation_id},
+        "recursion_limit": 10,
+    }
     result = graph.invoke(
         {"messages": [("user", user_message)]},
         config,
